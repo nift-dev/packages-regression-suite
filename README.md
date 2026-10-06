@@ -70,6 +70,10 @@ guarantee.
 `.github/workflows/contract.yml` runs the suite on `push` and
 `workflow_dispatch` (with an optional `nift-sha` input). A supplied Nift SHA is
 checked out as a commit object; the default is `main`. Requires 12/12 PASS.
+Every hosted run also records the exact resolved commit of every official
+package in `package-sources.json` (printed as a table and uploaded as the
+`package-sources` artifact), so each result is independently auditable after
+package `main` moves.
 
 ## Layered Nift testing model
 

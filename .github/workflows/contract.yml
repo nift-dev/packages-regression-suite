@@ -42,17 +42,20 @@ jobs:
         working-directory: nift
         run: make -j2
 
-      # Clean official package sources (current ecosystem certification).
-      - name: Checkout clean official package sources
+      # Clean official package sources with an exact per-run source manifest.
+      - name: Resolve and clone clean official package sources
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p nift-packages
-          for p in ansi assert cli csv curl dotenv duration fuzzy humanize id ignore \
-                   imagemagick mysql postgres redis semver sqlite url vips; do
-            git clone -q --depth 1 "https://github.com/nift-packages/${p}.git" "nift-packages/${p}"
-          done
+          bash packages-regression-suite/scripts/record_package_sources.sh package-sources.json
 
       - name: Run package regression suite
         run: |
           NIFT_BIN="$PWD/nift/nift" bash packages-regression-suite/run.sh
+
+      - name: Upload package-source manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-sources
+          path: package-sources.json

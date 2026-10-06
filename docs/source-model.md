@@ -18,6 +18,26 @@ checkout, no `/home/nick` absolute paths, no mutation of any package source
 repo. This is documented as **current ecosystem certification** (clean `main`
 of each official package against the supplied Nift binary).
 
+### Hosted source manifest (run evidence)
+
+Every hosted run records the **exact resolved package commit** for every
+package the suite uses into `package-sources.json` (`schema_version: 1`):
+
+```json
+{"packages": {"ansi": {"repository": "nift-packages/ansi",
+                        "requested_ref": "main", "commit": "<40-char sha>"}, ...}}
+```
+
+- full 40-char SHAs, deterministic ordering, all package sources represented;
+- printed to the Actions log as a table and uploaded as the `package-sources`
+  workflow artifact (also on failure, so a red run is still auditable);
+- fail-closed: a package that cannot be cloned, whose ref cannot resolve to a
+  full SHA, or that is missing from the manifest fails the run.
+
+The manifest is **evidence of what a given run resolved**, not a permanent
+lock; the semantic remains "certify current official ecosystem". A pinned
+historical snapshot mode is a separate future task.
+
 ## Per-package overrides → pinned snapshots later
 
 Every module honours a per-package source override (`CURL_PKG`,
