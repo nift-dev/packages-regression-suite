@@ -27,5 +27,12 @@ out=$(cd "$t/site" && "$NIFT_BIN" t.f)
 exp=$'3\n/a\nV\ny\n36'
 [ "$out" = "$exp" ] || { printf 'unexpected source-install output:\n%s\n' "$out" >&2; exit 1; }
 [ -f "$t/site/.nift/packages.lock.json" ] || { echo "lockfile missing" >&2; exit 1; }
-( cd "$ROOT" && git status --short "semver" "url" "dotenv" "csv" "id" "ansi" | grep -q . ) && { echo "package source trees were mutated" >&2; exit 1; } || true
+# The package source repositories must not have been mutated. Check each
+# package's OWN git repo (never the enclosing directory: that may itself be a
+# git checkout, which would produce false positives).
+for p in semver url dotenv csv id ansi; do
+  if git -C "$ROOT/$p" status --short | grep -q .; then
+    echo "package source tree mutated: $p" >&2; exit 1
+  fi
+done
 printf 'PASS ecosystem source-independent installation\n'
