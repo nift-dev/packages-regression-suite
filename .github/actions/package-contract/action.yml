@@ -1,0 +1,56 @@
+name: Package ecosystem contract
+description: >-
+  Fail-closed certification of a Nift build against the official package
+  ecosystem (packages-regression-suite, 12/12) with exact source evidence. The
+  caller must first build the Nift binary under test at $GITHUB_WORKSPACE/nift
+  from the exact commit being certified. Resolves every official package from
+  clean nift-packages/<name>@main clones, records a deterministic
+  package-sources.json manifest of exact 40-char package SHAs, uploads it as
+  the 'package-sources' artifact, and runs the 12-module suite.
+inputs:
+  nift-sha:
+    description: Exact full Nift commit SHA under certification (required)
+    required: true
+  suite-ref:
+    description: >-
+      packages-regression-suite ref/commit to certify against (branch or full
+      SHA; default 'main'). The exact resolved suite commit is recorded.
+    required: false
+    default: main
+runs:
+  using: composite
+  steps:
+    - name: Checkout packages-regression-suite (${{ inputs.suite-ref }})
+      shell: bash
+      run: |
+        set -euo pipefail
+        git clone --filter=blob:none --no-checkout \
+          https://github.com/nift-dev/packages-regression-suite.git packages-regression-suite
+        git -C packages-regression-suite fetch --no-tags origin "${{ inputs.suite-ref }}"
+        git -C packages-regression-suite checkout -q FETCH_HEAD
+        echo "packages-regression-suite=$(git -C packages-regression-suite rev-parse HEAD)"
+
+    - name: Resolve clean package sources + source manifest
+      shell: bash
+      run: bash packages-regression-suite/scripts/record_package_sources.sh package-sources.json
+
+    - name: Run package regression suite (12 modules)
+      shell: bash
+      run: |
+        set -euo pipefail
+        NIFT_BIN="$GITHUB_WORKSPACE/nift" bash packages-regression-suite/run.sh
+
+    - name: Report exact certification identities
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "nift=${{ inputs.nift-sha }}"
+        echo "packages-regression-suite=$(git -C packages-regression-suite rev-parse HEAD)"
+        echo "package-source manifest: package-sources.json (uploaded artifact)"
+
+    - name: Upload package-source manifest
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-sources
+        path: package-sources.json
