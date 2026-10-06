@@ -1,0 +1,58 @@
+name: Package regression contracts
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      nift-sha:
+        description: 'Explicit Nift commit SHA to test against (default: main)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: packages-regression-suite
+
+      # Nift acquisition: a supplied SHA is checked out as a commit object via a
+      # direct git fetch (never as refs/heads/<sha>); the default path uses main.
+      - name: Checkout Nift source (branch or explicit commit SHA)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none --no-checkout https://github.com/nift-dev/nift.git nift
+          NIFT_REF='${{ inputs.nift-sha }}'
+          if [[ -n "$NIFT_REF" ]]; then
+            git -C nift fetch --no-tags origin "$NIFT_REF"
+          else
+            git -C nift fetch --no-tags origin main
+          fi
+          git -C nift checkout -q FETCH_HEAD
+          printf 'Nift checkout: %s\n' "$(git -C nift rev-parse HEAD)"
+
+      - name: Build Nift
+        working-directory: nift
+        run: make -j2
+
+      # Clean official package sources (current ecosystem certification).
+      - name: Checkout clean official package sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p nift-packages
+          for p in ansi assert cli csv curl dotenv duration fuzzy humanize id ignore \
+                   imagemagick mysql postgres redis semver sqlite url vips; do
+            git clone -q --depth 1 "https://github.com/nift-packages/${p}.git" "nift-packages/${p}"
+          done
+
+      - name: Run package regression suite
+        run: |
+          NIFT_BIN="$PWD/nift/nift" bash packages-regression-suite/run.sh

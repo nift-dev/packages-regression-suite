@@ -52,11 +52,24 @@ The harness:
 
 ## Package source model
 
-The default certifies **current official package main** from the sibling
-`../nift-packages/*` checkouts (each module honours a per-package override such
-as `SQLITE_PKG=/path/to/pinned/sqlite`, so a determined pinned-snapshot mode can
-be added later without harness changes). Sources are installed with `nift add`
-into a fresh temporary site — never from the working tree directly.
+Two modes (see `docs/source-model.md`):
+
+- **LOCAL / current-ecosystem** (default): packages resolve from the sibling
+  `../nift-packages/*` checkouts for developer integration work.
+- **CI / clean-source** (`.github/workflows/contract.yml`): official packages
+  are clean-cloned from `https://github.com/nift-packages/<name>.git@main`
+  (no dirty sibling dependence, no absolute paths).
+
+Per-package overrides (`CURL_PKG`, `SQLITE_PKG`, `PG_PKG`, ...) allow pinned
+package revisions to be introduced later. The suite certifies the **current**
+official package contracts; historical package-API behavior is not a Nift core
+guarantee.
+
+## CI
+
+`.github/workflows/contract.yml` runs the suite on `push` and
+`workflow_dispatch` (with an optional `nift-sha` input). A supplied Nift SHA is
+checked out as a commit object; the default is `main`. Requires 12/12 PASS.
 
 ## Layered Nift testing model
 
